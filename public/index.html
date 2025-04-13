@@ -148,85 +148,74 @@ button:hover {
 
  
   <script>
-  document.addEventListener('DOMContentLoaded', function() {
-  const checkButton = document.getElementById('checkButton');
-  const inputText = document.getElementById('inputText');
-  const resultsContent = document.getElementById('resultsContent');
-  const loadingIndicator = document.getElementById('loading');
-
-  checkButton.addEventListener('click', async function() {
-    const text = inputText.value.trim();
+document.getElementById('checkButton').addEventListener('click', async function() {
+  const text = document.getElementById('inputText').value.trim();
+  const resultsDiv = document.getElementById('resultsContent');
+  const loadingDiv = document.getElementById('loading');
+  
+  // Clear previous results and show loading
+  resultsDiv.innerHTML = '';
+  loadingDiv.style.display = 'block';
+  
+  try {
+    // Make the API call
+    const response = await fetch('/api/check-grammar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text })
+    });
     
-    if (!text) {
-      alert('Please enter some text to check');
-      return;
+    // Get the response data
+    const data = await response.json();
+    
+    // Check if the request was successful
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to check grammar');
     }
     
-    // Show loading indicator
-    loadingIndicator.style.display = 'block';
-    resultsContent.innerHTML = '';
-    
-    try {
-      const response = await fetch('/api/check-grammar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: text })
+    // Display results
+    if (data.errors && data.errors.length > 0) {
+      let html = '<h3>Found Errors:</h3>';
+      data.errors.forEach(err => {
+        html += `
+          <div class="error">
+            <p><strong>Incorrect:</strong> ${err.incorrect}</p>
+            <p><strong>Correct:</strong> ${err.correct}</p>
+            <p><em>${err.explanation}</em></p>
+          </div>
+        `;
       });
-      
-      const data = await response.json();
-      displayResults(data);
-    } catch (error) {
-      resultsContent.innerHTML = `
-        <div class="error">
-          <h3>Error</h3>
-          <p>Could not check grammar. Please try again later.</p>
-        </div>
-      `;
-      console.error('Error:', error);
-    } finally {
-      loadingIndicator.style.display = 'none';
-    }
-  });
-
-  function displayResults(data) {
-    resultsContent.innerHTML = '';
-    
-    if (data.message && !data.errors) {
-      resultsContent.innerHTML = `
-        <div class="correct">
-          <h3>No errors found</h3>
+      resultsDiv.innerHTML = html;
+    } 
+    else if (data.message) {
+      resultsDiv.innerHTML = `
+        <div class="success">
           <p>${data.message}</p>
         </div>
       `;
-      return;
+    }
+    else {
+      resultsDiv.innerHTML = `
+        <div class="success">
+          <p>No grammar errors found!</p>
+        </div>
+      `;
     }
     
-    if (data.errors && data.errors.length > 0) {
-      resultsContent.innerHTML += '<h2>Errors Found</h2>';
-      data.errors.forEach(error => {
-        resultsContent.innerHTML += `
-          <div class="error">
-            <h3>Incorrect: "${error.incorrectPart}"</h3>
-            <p><strong>Correction:</strong> ${error.correction}</p>
-            <p><strong>Explanation:</strong> ${error.explanation}</p>
-            <p class="rule"><strong>Grammar Rule:</strong> ${error.rule}</p>
-          </div>
-        `;
-      });
-    }
-    
-    if (data.correctParts && data.correctParts.length > 0) {
-      resultsContent.innerHTML += '<h2>Correct Parts</h2>';
-      data.correctParts.forEach(part => {
-        resultsContent.innerHTML += `
-          <div class="correct">
-            <p>${part}</p>
-          </div>
-        `;
-      });
-    }
+  } catch (error) {
+    // Show error message
+    resultsDiv.innerHTML = `
+      <div class="error">
+        <p>Error: ${error.message}</p>
+        <p>Please try again later.</p>
+      </div>
+    `;
+    console.error('Error:', error);
+  } finally {
+    // Hide loading indicator
+    loadingDiv.style.display = 'none';
   }
 });
   </script>
