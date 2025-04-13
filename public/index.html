@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Grammar Checker</title>
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+.container {
+  background-color: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  color: #2c3e50;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+p {
+  text-align: center;
+  color: #7f8c8d;
+  margin-bottom: 30px;
+}
+
+.input-area {
+  margin-bottom: 30px;
+}
+
+textarea {
+  width: 100%;
+  height: 200px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  resize: vertical;
+  margin-bottom: 15px;
+}
+
+button {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  font-size: 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #2980b9;
+}
+
+.results {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 4px;
+  min-height: 100px;
+}
+
+.error {
+  background-color: #fdecea;
+  border-left: 4px solid #e74c3c;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 0 4px 4px 0;
+}
+
+.correct {
+  background-color: #e8f5e9;
+  border-left: 4px solid #2ecc71;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 0 4px 4px 0;
+}
+
+.error h3, .correct h3 {
+  margin-top: 0;
+}
+
+.error h3 {
+  color: #e74c3c;
+}
+
+.correct h3 {
+  color: #27ae60;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #7f8c8d;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top: 4px solid #3498db;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 15px auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.rule {
+  font-style: italic;
+  color: #7f8c8d;
+  margin-top: 10px;
+}
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Advanced Grammar Checker</h1>
+    <p>Paste your text below to check for grammatical errors</p>
+    
+    <div class="input-area">
+      <textarea id="inputText" placeholder="Paste your text here..."></textarea>
+      <button id="checkButton">Check Grammar</button>
+    </div>
+    
+    <div class="results" id="results">
+      <div class="loading" id="loading" style="display: none;">
+        Analyzing your text...
+        <div class="spinner"></div>
+      </div>
+      <div id="resultsContent"></div>
+    </div>
+  </div>
+
+ 
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+  const checkButton = document.getElementById('checkButton');
+  const inputText = document.getElementById('inputText');
+  const resultsContent = document.getElementById('resultsContent');
+  const loadingIndicator = document.getElementById('loading');
+
+  checkButton.addEventListener('click', async function() {
+    const text = inputText.value.trim();
+    
+    if (!text) {
+      alert('Please enter some text to check');
+      return;
+    }
+    
+    // Show loading indicator
+    loadingIndicator.style.display = 'block';
+    resultsContent.innerHTML = '';
+    
+    try {
+      const response = await fetch('/api/check-grammar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: text })
+      });
+      
+      const data = await response.json();
+      displayResults(data);
+    } catch (error) {
+      resultsContent.innerHTML = `
+        <div class="error">
+          <h3>Error</h3>
+          <p>Could not check grammar. Please try again later.</p>
+        </div>
+      `;
+      console.error('Error:', error);
+    } finally {
+      loadingIndicator.style.display = 'none';
+    }
+  });
+
+  function displayResults(data) {
+    resultsContent.innerHTML = '';
+    
+    if (data.message && !data.errors) {
+      resultsContent.innerHTML = `
+        <div class="correct">
+          <h3>No errors found</h3>
+          <p>${data.message}</p>
+        </div>
+      `;
+      return;
+    }
+    
+    if (data.errors && data.errors.length > 0) {
+      resultsContent.innerHTML += '<h2>Errors Found</h2>';
+      data.errors.forEach(error => {
+        resultsContent.innerHTML += `
+          <div class="error">
+            <h3>Incorrect: "${error.incorrectPart}"</h3>
+            <p><strong>Correction:</strong> ${error.correction}</p>
+            <p><strong>Explanation:</strong> ${error.explanation}</p>
+            <p class="rule"><strong>Grammar Rule:</strong> ${error.rule}</p>
+          </div>
+        `;
+      });
+    }
+    
+    if (data.correctParts && data.correctParts.length > 0) {
+      resultsContent.innerHTML += '<h2>Correct Parts</h2>';
+      data.correctParts.forEach(part => {
+        resultsContent.innerHTML += `
+          <div class="correct">
+            <p>${part}</p>
+          </div>
+        `;
+      });
+    }
+  }
+});
+  </script>
+</body>
+</html>
